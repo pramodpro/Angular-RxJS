@@ -1,26 +1,54 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 
-import { Observable, throwError } from 'rxjs';
-import { catchError, tap } from 'rxjs/operators';
+import { BehaviorSubject, combineLatest, Observable, throwError } from 'rxjs';
+import { catchError, map, tap } from 'rxjs/operators';
 
 import { Product } from './product';
 import { Supplier } from '../suppliers/supplier';
 import { SupplierService } from '../suppliers/supplier.service';
-
+import { ProductCategoryService } from '../product-categories/product-category.service'
 @Injectable({
   providedIn: 'root'
 })
 export class ProductService {
   private productsUrl = 'api/products';
   private suppliersUrl = this.supplierService.suppliersUrl;
+  private selectedCategory = new BehaviorSubject(0);
+  selectedCatAction$ = this.selectedCategory.asObservable();
   products$ = this.http.get<Product[]>(this.productsUrl)
   .pipe(
     tap(data => console.log('Products: ', JSON.stringify(data))),
     catchError(this.handleError)
   );
+
+  productsWithCategory$ = combineLatest([
+    this.products$,
+    this.productCategoryService.productCategories$
+  ]).pipe(
+    map(([products,categories]) =>
+      products.map( product => ({
+        ...product,
+      price: product.price * 1.5,
+      category: categories.find(c => product.categoryId === c.id).name,
+      searchKey:[product.productName]
+    }) as Product )));
+
+    // this.productsWithCategory$.pipe(
+    //   tap(product => console.log('selected product',product))
+    // )
+    selectedProduct$ = combineLatest([this.productsWithCategory$,this.selectedCatAction$]).pipe(
+      map(([products,selectedProductsId]) => products.find(product=> product.id===selectedProductsId)),
+      tap(product => console.log('selectedProduct', product))
+    );
+    selectedProductChanged(productId:number): void {
+      this.selectedCategory.next(productId);
+    }
+
+
+
   constructor(private http: HttpClient,
-              private supplierService: SupplierService) { }
+              private supplierService: SupplierService,private productCategoryService:ProductCategoryService) { }
 
 
   private fakeProduct(): Product {
