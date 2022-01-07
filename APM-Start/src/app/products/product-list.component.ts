@@ -13,13 +13,14 @@ import { ProductService } from './product.service';
 })
 export class ProductListComponent {
   pageTitle = 'Product List';
-  errorMessage = '';
+  errorMessageSubject =  new Subject<string>();
+  errorMessage$ = this.errorMessageSubject.asObservable();
   private categorySelectedSubject =  new BehaviorSubject<number>(0);
   categorySelectedAction$ = this.categorySelectedSubject.asObservable();
 
   categories$ = this.productCategory.productCategories$.pipe(
     catchError(err => {
-      this.errorMessage=err;
+      this.errorMessageSubject.next(err);
       return EMPTY;
     })
   )
